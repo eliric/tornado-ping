@@ -1,7 +1,7 @@
 # tornado-ping
 Asynchronous ping for python-Tornado that can ping multiple ips concurrently.<br>
-no subprocess required.<br>
-support coroutine.<br>
+No subprocess required.<br>
+Support coroutine.<br>
 # usage
 <br>
 ```python
