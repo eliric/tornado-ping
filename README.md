@@ -2,7 +2,7 @@
 Asynchronous ping for python-Tornado that can ping multiple ips concurrently.<br>
 No subprocess required.<br>
 Support coroutine.<br>
-# usage
+# Usage
 <br>
 ```python
 import torping
