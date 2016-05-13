@@ -207,7 +207,7 @@ class Torping(object):
         return
 
     @tornado.gen.coroutine
-    def ping_once(self, destIP, hostname, timeout, mySeqNumber, numDataBytes, quiet = False, ipv6=False):
+    def ping_once(self, destIP, hostname, timeout, mySeqNumber, numDataBytes, quiet=True, ipv6=False):
         """
         Returns either the delay (in ms) or None on timeout.
         """
@@ -262,7 +262,6 @@ class Torping(object):
                     except AttributeError:
                         # Python on windows dosn't have inet_ntop.
                         host_addr = hostname
-
                 print("%d bytes from %s: icmp_seq=%d ttl=%d time=%d ms" % ( dataSize, host_addr, icmpSeqNumber, iphTTL, delay))
             self.pktsRcvd += 1
             self.totTime += delay
@@ -279,7 +278,7 @@ class Torping(object):
         return delay
 
     @tornado.gen.coroutine
-    def ping(self, hostname, timeout = 3000, count = 3, interval = 1000, numDataBytes = 64, ipv6=False):
+    def ping(self, hostname, timeout = 3000, count = 3, interval = 1000, numDataBytes = 64, quiet=True, ipv6=False):
         self.reset_stats()
         mySeqNumber = 0 # Starting value
 
@@ -289,16 +288,18 @@ class Torping(object):
                 destIP = info[4][0]
             else:
                 destIP = socket.gethostbyname(hostname)
-            print("\nPYTHON PING %s (%s): %d data bytes" % (hostname, destIP, numDataBytes))
+            if not quiet:
+                print("\nPYTHON PING %s (%s): %d data bytes" % (hostname, destIP, numDataBytes))
         except socket.gaierror as e:
             #etype, evalue, etb = sys.exc_info()
-            print("\nPYTHON PING: Unknown host: %s (%s)" % (hostname, str(e))) #(hostname, evalue.args[1]))
+            if not quiet:
+                print("\nPYTHON PING: Unknown host: %s (%s)" % (hostname, str(e))) #(hostname, evalue.args[1]))
             return
 
         self.thisIP = destIP
 
         for i in range(count):
-            delay = yield self.ping_once(destIP, hostname, timeout,mySeqNumber, numDataBytes, ipv6=ipv6)
+            delay = yield self.ping_once(destIP, hostname, timeout,mySeqNumber, numDataBytes, quiet=quiet, ipv6=ipv6)
             if delay is None:
                 delay = 0
 
@@ -307,10 +308,11 @@ class Torping(object):
             if interval > delay:
                 pass
                 yield tornado.gen.sleep((interval - delay)/1000)
-        self.dump_stats()
+        if not quiet:
+            self.dump_stats()
         #print(self.pktsRcvd / self.pktsSent)
         return bool(self.pktsRcvd)
 
 if __name__ == '__main__':
     torping = Torping()
-    tornado.ioloop.IOLoop.current().run_sync(lambda:torping.ping("www.google.com"))
+    tornado.ioloop.IOLoop.current().run_sync(lambda:torping.ping("www.bing.com", quiet=False))
