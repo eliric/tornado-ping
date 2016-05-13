@@ -141,10 +141,11 @@ class Torping(object):
         return sendTime
     
     @tornado.gen.coroutine
-    def receive_one_ping(self, tsocket, myID, timeout, ipv6 = False):
+    def receive_one_ping(self, tsocket, destIP, myID, timeout, ipv6 = False):
         """
         Receive the ping from the socket. Timeout = in ms
         """
+        destIP = i2n(destIP)
         timeLeft = timeout/1000
         start_time = default_timer()
         tornado.ioloop.IOLoop.current().add_timeout(start_time + timeLeft , lambda : tsocket.close())
@@ -156,8 +157,10 @@ class Torping(object):
                 except iopacket.FdClosedError:
                     return None, 0, 0, 0, 0
                 #print(recPacket)
-
-                timeReceived = default_timer()
+                
+                if struct.unpack("!I", recPacket[12:16])[0] != destIP:
+                    continue
+                
                 ipHeader = recPacket[:20]
                 iphVersion, iphTypeOfSvc, iphLength, \
                 iphID, iphFlags, iphTTL, iphProtocol, \
@@ -178,6 +181,7 @@ class Torping(object):
                 # Match only the packets we care about
                 if (icmpType == 0) and (icmpPacketID == myID):
                 #if icmpPacketID == myID: # Our packet
+                    timeReceived = default_timer()
                     dataSize = len(recPacket) - 28
                     #print (len(recPacket.encode()))
                     return timeReceived, (dataSize + 8), iphSrcIP, icmpSeqNumber, iphTTL
@@ -238,7 +242,7 @@ class Torping(object):
                 raise # raise the original error
 
         #my_ID = os.getpid() & 0xFFFF
-        my_ID = (os.getpid() ^ get_ident() + i2n(destIP)) & 0xFFFF
+        my_ID = (os.getpid() ^ get_ident()) & 0xFFFF
         tsocket = iopacket.IOPacket(mySocket, max_packet_size=ICMP_MAX_RECV)
         sentTime = yield self.send_one_ping(tsocket, destIP, my_ID, mySeqNumber, numDataBytes, ipv6)
         if sentTime == None:
@@ -247,7 +251,7 @@ class Torping(object):
 
         self.pktsSent += 1
 
-        recvTime, dataSize, iphSrcIP, icmpSeqNumber, iphTTL = yield self.receive_one_ping(tsocket, my_ID, timeout, ipv6)
+        recvTime, dataSize, iphSrcIP, icmpSeqNumber, iphTTL = yield self.receive_one_ping(tsocket, destIP, my_ID, timeout, ipv6)
 
         tsocket.close()
 
